@@ -1,0 +1,2 @@
+# tech_eazy_devops_rakshitmalik136
+TechEazy assignment
