@@ -232,6 +232,7 @@ echo "Check the results above to ensure all requirements are met."
 echo -e "\nTo manually upload more logs, use:"
 echo "aws s3 cp /var/log/user-data.log s3://$S3_BUCKET/ec2-logs/"
 echo "aws s3 cp /opt/techeazy-app/logs/application.log s3://$S3_BUCKET/app-logs/"
+EOF
 ```
 
 ```bash
