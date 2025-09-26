@@ -27,3 +27,14 @@ variable "app_port" {
   type        = number
   default     = 8080
 }
+
+variable "s3_bucket_name" {
+  description = "Name for the S3 bucket to store logs (leave empty for auto-generated name)"
+  type        = string
+  default     = ""
+  
+  validation {
+    condition     = var.s3_bucket_name == "" || can(regex("^[a-z0-9][a-z0-9-]*[a-z0-9]$", var.s3_bucket_name))
+    error_message = "S3 bucket name must be lowercase, start and end with alphanumeric characters, and can contain hyphens."
+  }
+}
