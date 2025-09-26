@@ -1,4 +1,4 @@
-# TechEazy DevOps Assignment 2 - S3 Integration
+# TechEazy DevOps Assignment - S3 Integration
 
 This repository contains a Spring Boot MVC application with comprehensive AWS infrastructure automation using Terraform, including S3 bucket management and IAM role integration.
 
