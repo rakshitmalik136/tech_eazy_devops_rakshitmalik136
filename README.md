@@ -153,6 +153,88 @@ verification_commands = "..."
 
 SSH into your instance and run the verification script:
 ```bash
+cat > verification-test.sh << EOF
+#!/bin/bash
+
+# Task 2 Verification Script
+# Run this script after SSH-ing into your EC2 instance
+
+echo "=== Task 2 Verification Script ==="
+echo "Testing all requirements from the assignment"
+
+# Get bucket name from terraform output or set manually
+S3_BUCKET=${1:-$(aws s3 ls | grep techeazy | awk '{print $3}')}
+
+if [ -z "$S3_BUCKET" ]; then
+    echo "Please provide S3 bucket name as argument: ./verification-test.sh your-bucket-name"
+    exit 1
+fi
+
+echo "Using S3 bucket: $S3_BUCKET"
+
+# Requirement 7: Use role 1.a to verify that files can be listed
+echo -e "\n=== Testing Requirement 7: List files with read-only role ==="
+echo "Current IAM role attached to this instance:"
+curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/ || echo "No IAM role attached"
+
+echo "Testing S3 list access:"
+aws s3 ls s3://$S3_BUCKET/ && echo "S3 list access working" || echo "S3 list access failed"
+
+echo "Testing S3 list specific folders:"
+aws s3 ls s3://$S3_BUCKET/ec2-logs/ && echo "EC2 logs folder access working" || echo "EC2 logs folder access failed"
+aws s3 ls s3://$S3_BUCKET/app-logs/ && echo "App logs folder access working" || echo "App logs folder access failed"
+
+# Test read access to a specific file
+echo -e "\n=== Testing S3 read access ==="
+LATEST_FILE=$(aws s3 ls s3://$S3_BUCKET/ec2-logs/ | tail -1 | awk '{print $4}')
+if [ -n "$LATEST_FILE" ]; then
+    echo "Testing read access to: $LATEST_FILE"
+    aws s3 cp s3://$S3_BUCKET/ec2-logs/$LATEST_FILE /tmp/test-download.log && echo "S3 read access working" || echo "S3 read access failed"
+    rm -f /tmp/test-download.log
+else
+    echo "No files found in ec2-logs folder to test read access"
+fi
+
+# Requirement 4 & 5: Verify log uploads
+echo -e "\n=== Testing Requirements 4 & 5: Log uploads ==="
+echo "Checking if EC2 logs were uploaded (Requirement 4):"
+aws s3 ls s3://$S3_BUCKET/ec2-logs/ && echo "EC2 logs found in S3" || echo "No EC2 logs in S3"
+
+echo "Checking if application logs were uploaded (Requirement 5):"
+aws s3 ls s3://$S3_BUCKET/app-logs/ && echo "Application logs found in S3" || echo "No application logs in S3"
+
+# Requirement 6: Test lifecycle rule
+echo -e "\n=== Testing Requirement 6: S3 lifecycle rule ==="
+echo "Checking lifecycle configuration:"
+aws s3api get-bucket-lifecycle-configuration --bucket $S3_BUCKET 2>/dev/null && echo "Lifecycle rule configured" || echo "No lifecycle rule found"
+
+# Test application endpoints
+echo -e "\n=== Testing Application Endpoints ==="
+echo "Testing /hello endpoint:"
+curl -s http://localhost:8080/hello | grep -i "hello" && echo "/hello endpoint working" || echo "/hello endpoint failed"
+
+echo "Testing /parcel endpoint:"
+curl -s http://localhost:8080/parcel | grep -i "parcel" && echo "/parcel endpoint working" || echo "/parcel endpoint failed"
+
+# Check application service status
+echo -e "\n=== Service Status Check ==="
+sudo systemctl is-active --quiet techeazy-app.service && echo "Application service running" || echo "Application service not running"
+
+# Manual test for upload capability (if needed)
+echo -e "\n=== Manual Upload Test ==="
+echo "Creating a test file and uploading to S3..."
+echo "Test log entry at $(date)" > /tmp/manual-test.log
+aws s3 cp /tmp/manual-test.log s3://$S3_BUCKET/test-logs/manual-test-$(date +%Y%m%d-%H%M%S).log && echo "Manual upload test successful" || echo "Manual upload test failed"
+rm -f /tmp/manual-test.log
+
+echo -e "\n=== Verification Complete ==="
+echo "Check the results above to ensure all requirements are met."
+echo -e "\nTo manually upload more logs, use:"
+echo "aws s3 cp /var/log/user-data.log s3://$S3_BUCKET/ec2-logs/"
+echo "aws s3 cp /opt/techeazy-app/logs/application.log s3://$S3_BUCKET/app-logs/"
+```
+
+```bash
 # SSH into the instance (use output command)
 ssh -i ~/.ssh/your-key.pem ubuntu@YOUR_PUBLIC_IP
 
