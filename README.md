@@ -1,187 +1,279 @@
-# TechEazy Spring Boot Application - Deployment Guide
+# TechEazy DevOps Assignment 2 - S3 Integration
 
-This repository contains a simple Spring Boot MVC application with automated deployment scripts for AWS infrastructure using Terraform.
+This repository contains a Spring Boot MVC application with comprehensive AWS infrastructure automation using Terraform, including S3 bucket management and IAM role integration.
 
 ## 📋 Table of Contents
 
 - [Project Overview](#project-overview)
+- [Assignment Requirements](#assignment-requirements)
 - [Prerequisites](#prerequisites)
-- [Local Development](#local-development)
-- [AWS Deployment](#aws-deployment)
-- [Manual Deployment](#manual-deployment)
+- [Quick Start](#quick-start)
+- [Detailed Setup](#detailed-setup)
+- [Verification](#verification)
+- [Architecture](#architecture)
 - [Troubleshooting](#troubleshooting)
-- [Project Structure](#project-structure)
 
 ## 🚀 Project Overview
 
-This is a simple Spring Boot application that provides:
-- A "Hello World" endpoint at `/hello`
-- A parcel endpoint at `/parcel`
-- Thymeleaf templating engine for view rendering
-- Runs on port 80 (configurable via `application.properties`)
+This project extends a simple Spring Boot application with AWS cloud infrastructure that includes:
+- **Web Application**: Spring Boot with `/hello` and `/parcel` endpoints
+- **EC2 Infrastructure**: Automated instance deployment with security groups
+- **S3 Integration**: Private bucket with lifecycle policies for log storage
+- **IAM Management**: Two distinct roles for different S3 access patterns
+- **Automated Log Upload**: EC2 and application logs automatically uploaded to S3
+
+## 📝 Assignment Requirements
+
+### ✅ Completed Features:
+
+1. **Two IAM Roles Created**:
+   - **Role 1.a**: S3ReadOnlyRole - Read-only access to S3 bucket
+   - **Role 1.b**: S3UploadOnlyRole - Upload access only (no read/download)
+
+2. **EC2 Instance Profile**: Role 1.a attached via IamInstanceProfile
+
+3. **Private S3 Bucket**: Configurable name with error handling if name exists
+
+4. **EC2 Log Upload**: `/var/log/cloud-init.log`, `/var/log/user-data.log` uploaded after instance shutdown
+
+5. **Application Log Upload**: Spring Boot application logs uploaded to `/app-logs` folder
+
+6. **S3 Lifecycle Rule**: Automatically deletes logs after 7 days
+
+7. **Access Verification**: Role 1.a can successfully list files in S3 bucket
 
 ## 📦 Prerequisites
 
-### For Local Development:
-- **Java 17** or higher
-- **Maven 3.6+**
-- **Git**
-
-### For AWS Deployment:
+### Required Tools:
 - **AWS Account** with appropriate permissions
-- **Terraform 1.0+** installed
+- **Terraform 1.0+** installed locally
 - **AWS CLI** configured with credentials
-- **SSH Key Pair** (optional, for server access)
+- **Git** for cloning the repository
 
-## 🏠 Local Development
+### AWS Permissions Needed:
+- EC2: Launch instances, create security groups
+- S3: Create buckets, manage lifecycle policies
+- IAM: Create roles, policies, and instance profiles
 
-### Step 1: Clone the Repository
+## 🚀 Quick Start
+
+### 1. Clone and Setup
 ```bash
 git clone https://github.com/Trainings-TechEazy/test-repo-for-devops.git
-cd test-repo-for-devops
+cd test-repo-for-devops/terraform
 ```
 
-### Step 2: Build the Application
+### 2. Configure Variables
 ```bash
-mvn clean package
+# Create terraform.tfvars file
+cat > terraform.tfvars << EOF
+aws_region = "us-east-1"
+s3_bucket_name = "techeazy-devops-logs-$(whoami)-$(date +%s)"
+instance_type = "t2.micro"
+app_port = 8080
+EOF
 ```
 
-### Step 3: Run Locally
+### 3. Deploy Infrastructure
 ```bash
-java -jar target/hellomvc-0.0.1-SNAPSHOT.jar
+terraform init
+terraform plan
+terraform apply
 ```
 
-### Step 4: Access the Application
-- **Main Hello Page**: http://localhost:80/hello
-- **Parcel Endpoint**: http://localhost:80/parcel
+### 4. Access Your Application
+After deployment, use the output URLs:
+```bash
+# Get outputs
+terraform output
+# Access application at: http://YOUR_PUBLIC_IP:8080/hello
+```
 
-> **Note**: The application runs on port 80 by default. You may need to run with `sudo` on Linux/Mac or change the port in `application.properties`.
+## 🔧 Detailed Setup
 
-## ☁️ AWS Deployment
+### Step 1: AWS Configuration
 
-### Step 1: Configure AWS Credentials
-
-Make sure your AWS CLI is configured:
+Ensure your AWS credentials are configured:
 ```bash
 aws configure
-```
-
-Or set environment variables:
-```bash
+# OR set environment variables:
 export AWS_ACCESS_KEY_ID="your-access-key"
 export AWS_SECRET_ACCESS_KEY="your-secret-key"
 export AWS_DEFAULT_REGION="us-east-1"
 ```
 
-### Step 2: Navigate to Terraform Directory
+### Step 2: Customize Deployment
+
+Create `terraform/terraform.tfvars`:
+```hcl
+# Required: Unique S3 bucket name
+s3_bucket_name = "your-unique-bucket-name-123"
+
+# Optional: AWS region
+aws_region = "us-east-1"
+
+# Optional: EC2 instance type
+instance_type = "t2.micro"
+
+# Optional: SSH access (uncomment if needed)
+# key_pair_name = "your-existing-key-pair"
+
+# Optional: Custom VPC (leave empty for default)
+# vpc_id = "vpc-xxxxxxxxx"
+```
+
+### Step 3: Deploy Resources
+
 ```bash
 cd terraform
-```
 
-### Step 3: Initialize Terraform
-```bash
+# Initialize Terraform
 terraform init
-```
 
-### Step 4: Review and Customize Variables (Optional)
-
-Create a `terraform.tfvars` file to customize deployment:
-```hcl
-# terraform.tfvars
-aws_region      = "us-west-2"
-instance_type   = "t3.small"
-key_pair_name   = "my-key-pair"  # Your existing AWS key pair name
-app_port        = 8080
-```
-
-### Step 5: Plan the Deployment
-```bash
+# Review planned changes
 terraform plan
-```
 
-### Step 6: Deploy the Infrastructure
-```bash
+# Deploy infrastructure
 terraform apply
 ```
 
-Type `yes` when prompted to confirm the deployment.
+### Step 4: Verify Deployment
 
-### Step 7: Access Your Application
-
-After deployment completes, Terraform will output:
-- **Public IP**: The instance's public IP address
-- **Application URL**: Direct link to access your app
-- **SSH Command**: Command to connect to the server (if key pair configured)
-
-Example output:
+After successful deployment, Terraform will output:
 ```
 application_url = "http://54.123.456.789:8080"
-instance_public_ip = "54.123.456.789"
-ssh_connection = "ssh -i ~/.ssh/my-key.pem ubuntu@54.123.456.789"
+s3_bucket_name = "your-bucket-name"
+ssh_connection = "ssh -i ~/.ssh/key.pem ubuntu@54.123.456.789"
+verification_commands = "..."
 ```
 
-### Step 8: Test Your Deployment
-- **Hello Endpoint**: `http://YOUR_PUBLIC_IP:8080/hello`
-- **Parcel Endpoint**: `http://YOUR_PUBLIC_IP:8080/parcel`
+## ✅ Verification
 
-### Step 9: Clean Up Resources (When Done)
+### Automated Verification Script
+
+SSH into your instance and run the verification script:
 ```bash
-terraform destroy
+# SSH into the instance (use output command)
+ssh -i ~/.ssh/your-key.pem ubuntu@YOUR_PUBLIC_IP
+
+# Download and run verification script
+wget -O verify.sh https://raw.githubusercontent.com/your-repo/verification-test.sh
+chmod +x verify.sh
+./verify.sh your-bucket-name
 ```
 
-## 🔧 Manual Deployment
+### Manual Verification Steps
 
-If you prefer to deploy manually on an existing Ubuntu server:
+1. **Test Application Endpoints**:
+   ```bash
+   curl http://YOUR_PUBLIC_IP:8080/hello
+   curl http://YOUR_PUBLIC_IP:8080/parcel
+   ```
 
-### Step 1: Connect to Your Server
-```bash
-ssh ubuntu@your-server-ip
+2. **Verify S3 Access (from EC2 instance)**:
+   ```bash
+   # Test S3 list access (should work with read-only role)
+   aws s3 ls s3://your-bucket-name/
+
+   # Check uploaded logs
+   aws s3 ls s3://your-bucket-name/ec2-logs/
+   aws s3 ls s3://your-bucket-name/app-logs/
+   ```
+
+3. **Verify IAM Roles**:
+   ```bash
+   # Check attached IAM role
+   curl http://169.254.169.254/latest/meta-data/iam/security-credentials/
+   ```
+
+4. **Test Log Upload**:
+   ```bash
+   # Upload a test file
+   echo "Test log $(date)" > /tmp/test.log
+   aws s3 cp /tmp/test.log s3://your-bucket-name/test-logs/
+   ```
+
+## 🏗️ Architecture
+
+### Infrastructure Components
+
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   EC2 Instance  │    │   S3 Bucket      │    │   IAM Roles     │
+│                 │    │                  │    │                 │
+│ ┌─────────────┐ │    │ ┌──────────────┐ │    │ ┌─────────────┐ │
+│ │Spring Boot  │ │    │ │  /ec2-logs/  │ │    │ │ReadOnlyRole │ │
+│ │Application  │ │    │ │  /app-logs/  │ │    │ │             │ │
+│ └─────────────┘ │    │ │ /system-logs/│ │    │ └─────────────┘ │
+│                 │────┤ └──────────────┘ │    │                 │
+│ ┌─────────────┐ │    │                  │    │ ┌─────────────┐ │
+│ │   Logs      │ │    │ Lifecycle: 7 days│    │ │UploadRole   │ │
+│ └─────────────┘ │    └──────────────────┘    │ │             │ │
+└─────────────────┘                            │ └─────────────┘ │
+                                               └─────────────────┘
 ```
 
-### Step 2: Run the Deployment Script
-```bash
-wget https://raw.githubusercontent.com/Trainings-TechEazy/test-repo-for-devops/main/scripts/user_data.sh
-chmod +x user_data.sh
-sudo ./user_data.sh
-```
+### Security Configuration
 
-### Step 3: Verify Deployment
-```bash
-sudo systemctl status techeazy-app.service
-```
+- **VPC**: Uses default VPC or specified custom VPC
+- **Security Group**: Allows SSH (22) and application port (8080)
+- **S3 Bucket**: Private with blocked public access
+- **IAM Roles**: Least privilege access patterns
+
+### Logging Strategy
+
+- **EC2 Logs**: System logs uploaded during instance setup
+- **Application Logs**: Spring Boot logs with separate error streams
+- **Automated Upload**: Periodic log uploads via systemd service
+- **Lifecycle Management**: 7-day retention policy
 
 ## 🛠️ Troubleshooting
 
-### Common Issues:
+### Common Issues
 
-#### 1. Port 80 Permission Issues (Local)
+#### 1. S3 Bucket Name Already Exists
 ```bash
-# Change port in src/main/resources/application.properties
-server.port=8080
+# Error: BucketAlreadyExists
+# Solution: Change bucket name in terraform.tfvars
+s3_bucket_name = "techeazy-logs-unique-$(date +%s)"
 ```
 
-#### 2. AWS Deployment Fails
-- Check AWS credentials: `aws sts get-caller-identity`
-- Verify Terraform installation: `terraform version`
-- Check AWS service limits in your region
-
-#### 3. Application Not Starting on EC2
+#### 2. IAM Permission Issues
 ```bash
-# SSH into the instance and check logs
-ssh -i your-key.pem ubuntu@instance-ip
-sudo journalctl -u techeazy-app.service -f
+# Check current IAM role on EC2
+curl http://169.254.169.254/latest/meta-data/iam/security-credentials/
+
+# Test S3 access
+aws s3 ls s3://your-bucket-name/
 ```
 
-#### 4. Security Group Issues
-Ensure the security group allows traffic on:
-- Port 22 (SSH)
-- Port 8080 (Application) or your configured port
-
-#### 5. Service Status Check
+#### 3. Application Not Starting
 ```bash
-# On the EC2 instance
+# SSH into instance and check service
 sudo systemctl status techeazy-app.service
-sudo systemctl restart techeazy-app.service
+sudo journalctl -u techeazy-app.service -f
+
+# Check application logs
+tail -f /opt/techeazy-app/logs/application.log
+```
+
+#### 4. Log Upload Failures
+```bash
+# Check AWS CLI configuration
+aws sts get-caller-identity
+
+# Manually test upload
+aws s3 cp /var/log/user-data.log s3://your-bucket-name/test/
+```
+
+#### 5. Terraform State Issues
+```bash
+# Reset Terraform state (careful!)
+terraform refresh
+terraform plan
+
+# Force unlock if needed
+terraform force-unlock LOCK_ID
 ```
 
 ## 📁 Project Structure
@@ -190,72 +282,104 @@ sudo systemctl restart techeazy-app.service
 ├── src/
 │   └── main/
 │       ├── java/com/example/hellomvc/
-│       │   ├── HelloMvcApplication.java      
+│       │   ├── HelloMvcApplication.java      # Main Spring Boot app
 │       │   └── controller/
-│       │       ├── HelloController.java      
-│       │       └── ParcelController.java     
+│       │       ├── HelloController.java      # /hello endpoint
+│       │       └── ParcelController.java     # /parcel endpoint
 │       └── resources/
-│           ├── application.properties        
+│           ├── application.properties        # Port: 80 (changed to 8080 in deployment)
 │           └── templates/
-│               └── hello.html                
+│               └── hello.html                # Thymeleaf template
 ├── terraform/
-│   ├── main.tf                               
-│   ├── variables.tf                          
-│   └── outputs.tf                            
+│   ├── main.tf                               # Main Terraform configuration
+│   ├── variables.tf                          # Variable definitions
+│   ├── outputs.tf                            # Output values
+│   └── terraform.tfvars                      # User configuration
 ├── scripts/
-│   └── user_data.sh                          
-├── pom.xml                                   
-└── README.md                                 
+│   ├── user_data.sh                          # EC2 initialization script
+│   └── verification-test.sh                  # Verification script
+├── pom.xml                                   # Maven configuration
+└── README.md                                 # README.md file
 ```
 
-## 🔍 Configuration Details
-
-### Application Configuration
-- **Default Port**: 80 (configurable in `application.properties`)
-- **Framework**: Spring Boot 3.2.4
-- **Java Version**: 17
-- **Templating**: Thymeleaf
-
-### AWS Infrastructure
-- **Instance Type**: t3.micro (default, configurable)
-- **OS**: Ubuntu 22.04 LTS
-- **Security**: Security group with SSH (22) and app port access
-- **Service**: Systemd service for auto-start and management
+## 🔧 Configuration Reference
 
 ### Terraform Variables
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `aws_region` | AWS region for deployment | `us-east-1` |
-| `instance_type` | EC2 instance type | `t3.micro` |
-| `vpc_id` | VPC ID (empty = default VPC) | `""` |
-| `key_pair_name` | SSH key pair name | `""` |
-| `app_port` | Application port | `8080` |
 
-## 🚨 Security Considerations
+| Variable | Description | Default | Required |
+|----------|-------------|---------|----------|
+| `aws_region` | AWS region for deployment | `us-east-1` | No |
+| `s3_bucket_name` | Unique S3 bucket name | `""` (auto-generated) | No |
+| `instance_type` | EC2 instance type | `t2.micro` | No |
+| `app_port` | Application port | `8080` | No |
+| `key_pair_name` | SSH key pair name | `""` (no SSH) | No |
+| `vpc_id` | VPC ID | `""` (default VPC) | No |
 
-⚠️ **Important**: The current configuration allows public access. For production:
+### Environment Variables
 
-1. **Restrict SSH access** to your IP range
-2. **Use Application Load Balancer** with SSL/TLS
-3. **Enable VPC flow logs** and monitoring
-4. **Implement proper IAM roles** and policies
-5. **Use AWS Systems Manager** instead of SSH keys
+```bash
+# AWS Configuration
+export AWS_ACCESS_KEY_ID="your-access-key"
+export AWS_SECRET_ACCESS_KEY="your-secret-key"
+export AWS_DEFAULT_REGION="us-east-1"
 
-## 🤝 Contributing
+# Optional: Terraform variables
+export TF_VAR_s3_bucket_name="my-unique-bucket"
+export TF_VAR_instance_type="t3.micro"
+```
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test locally
-5. Submit a pull request
+## 🧪 Testing
+
+### Unit Tests (Local)
+```bash
+# Run Spring Boot tests
+mvn test
+
+# Build application
+mvn clean package
+```
+
+### Integration Tests (AWS)
+```bash
+# Deploy and test
+terraform apply
+./scripts/verify-deployment.sh
+
+# Load test endpoints
+ab -n 100 -c 10 http://YOUR_IP:8080/hello
+```
+
+### Cleanup
+```bash
+# Destroy all AWS resources
+terraform destroy
+
+# Verify cleanup
+aws s3 ls | grep your-bucket-name
+aws ec2 describe-instances --filters "Name=tag:Project,Values=DevOps-Assignment-2"
+```
+
+## 📚 Additional Resources
+
+- [Spring Boot Documentation](https://spring.io/projects/spring-boot)
+- [Terraform AWS Provider](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
+- [AWS S3 Lifecycle Policies](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-lifecycle-mgmt.html)
+- [AWS IAM Best Practices](https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html)
 
 ## 📄 License
 
-This project is part of the TechEazy DevOps training assignment.
+This project is part of the TechEazy DevOps training program.
 
 ---
 
-**Need Help?** 
+**🚨 Important Notes:**
+- Always use unique S3 bucket names
+- Review AWS costs before deployment
+- Clean up resources after testing
+- Never commit AWS credentials to version control
+
+**📞 Need Help?**
 - Check the [Troubleshooting](#troubleshooting) section
-- Review AWS CloudWatch logs for deployment issues
-- Verify all prerequisites are installed and configured
+- Review Terraform plan before applying
+- Use AWS CloudWatch for monitoring
+- Check application logs for runtime issues
